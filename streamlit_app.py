@@ -37,16 +37,15 @@ def load_from_csv(csv_file):
     return pd.DataFrame()
 
 
-def generate_shoe_ids(n=10):
+def generate_shoe_id():
     colors = ["BLK", "WHT", "RED", "BLU", "GRY", "PNK", "TAN", "NVY"]
-    shoe_ids = set()
+    num = random.randint(100000, 999999)
+    color = random.choice(colors)
+    return f"{num}{color}"
 
-    while len(shoe_ids) < n:
-        num = random.randint(100000, 999999)
-        color = random.choice(colors)
-        shoe_ids.add(f"{num}{color}")
 
-    return list(shoe_ids)
+def generate_sizes():
+    return ["6", "6H", "7", "7H", "8", "8H", "9", "9H", "10", "10H"]
 
 
 def main():
@@ -57,12 +56,12 @@ def main():
         st.session_state["start_time"] = None
     if "task_duration" not in st.session_state:
         st.session_state["task_duration"] = None
-    if "current_shoe_ids" not in st.session_state:
-        st.session_state["current_shoe_ids"] = None
+    if "current_options" not in st.session_state:
+        st.session_state["current_options"] = None
     if "target_shoe_id" not in st.session_state:
         st.session_state["target_shoe_id"] = None
-    if "task_started" not in st.session_state:
-        st.session_state["task_started"] = False
+    if "target_size" not in st.session_state:
+        st.session_state["target_size"] = None
 
     home, consent, demographics, tasks, exit_tab, report = st.tabs(
         ["Home", "Consent", "Demographics", "Task", "Exit Questionnaire", "Report"]
@@ -73,8 +72,8 @@ def main():
         st.write("""
         Welcome to the Usability Testing Tool.
 
-        This usability test is designed to evaluate how easily users can search for
-        a shoe in a shoe inventory system by matching a shoe ID to the correct item.
+        This usability test evaluates how easily users can locate the correct shoe size
+        for a given shoe ID in a shoe inventory system.
 
         In this app, you will:
         1. Provide consent for data collection.
@@ -88,8 +87,8 @@ def main():
         st.header("Consent Form")
 
         st.write("""
-        This usability test evaluates how easily users can locate a shoe in an inventory system
-        by using a shoe ID.
+        This usability test evaluates how easily users can locate the correct shoe size
+        within a shoe inventory system.
 
         By participating in this study:
         - Your responses may be collected for academic purposes.
@@ -146,38 +145,39 @@ def main():
                 st.success("Demographic data saved successfully.")
 
     with tasks:
-        st.header("Task Page - Shoe Inventory Lookup")
+        st.header("Task Page - Shoe Size Lookup")
 
         st.write("""
         In this task, you will simulate using a shoe inventory system.
 
-        You will be given one shoe ID to search for.
-        Your job is to locate the matching shoe ID from a list of 10 options
-        as quickly and accurately as possible.
+        You will be given a shoe ID and a target size.
+        Your job is to locate the exact matching option from the list as quickly
+        and accurately as possible.
         """)
 
         if st.button("Generate New Task"):
-            shoe_ids = generate_shoe_ids(10)
-            target_id = random.choice(shoe_ids)
+            shoe_id = generate_shoe_id()
+            sizes = generate_sizes()
+            target_size = random.choice(sizes)
+            options = [f"{shoe_id} {size}" for size in sizes]
 
-            st.session_state["current_shoe_ids"] = shoe_ids
-            st.session_state["target_shoe_id"] = target_id
+            st.session_state["target_shoe_id"] = shoe_id
+            st.session_state["target_size"] = target_size
+            st.session_state["current_options"] = options
             st.session_state["start_time"] = None
             st.session_state["task_duration"] = None
-            st.session_state["task_started"] = False
 
-        if st.session_state["current_shoe_ids"] is not None:
-            st.subheader("Find this Shoe ID:")
-            st.code(st.session_state["target_shoe_id"])
+        if st.session_state["current_options"] is not None:
+            st.subheader("Find this Shoe ID and Size:")
+            st.code(f"{st.session_state['target_shoe_id']} {st.session_state['target_size']}")
 
             if st.button("Start Task Timer"):
                 st.session_state["start_time"] = time.time()
-                st.session_state["task_started"] = True
                 st.success("Task timer started.")
 
-            selected_shoe = st.radio(
-                "Select the matching Shoe ID",
-                st.session_state["current_shoe_ids"]
+            selected_option = st.radio(
+                "Select the matching Shoe ID and Size",
+                st.session_state["current_options"]
             )
 
             observer_notes = st.text_area("Observer Notes")
@@ -189,28 +189,28 @@ def main():
                 else:
                     st.session_state["task_duration"] = ""
 
-                correct = selected_shoe == st.session_state["target_shoe_id"]
+                correct_option = f"{st.session_state['target_shoe_id']} {st.session_state['target_size']}"
+                correct = selected_option == correct_option
 
                 if correct:
-                    st.success("Correct shoe selected!")
+                    st.success("Correct size selected!")
                 else:
-                    st.error("Incorrect shoe selected.")
+                    st.error("Incorrect size selected.")
 
                 data_dict = {
                     "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
                     "target_shoe_id": st.session_state["target_shoe_id"],
-                    "selected_shoe_id": selected_shoe,
+                    "target_size": st.session_state["target_size"],
+                    "selected_option": selected_option,
                     "correct": correct,
                     "duration_seconds": st.session_state["task_duration"],
                     "notes": observer_notes
                 }
                 save_to_csv(data_dict, TASK_CSV)
-
                 st.success("Task results saved successfully.")
 
                 st.session_state["start_time"] = None
                 st.session_state["task_duration"] = None
-                st.session_state["task_started"] = False
         else:
             st.info("Click 'Generate New Task' to begin.")
 
@@ -219,11 +219,11 @@ def main():
 
         with st.form("exit_form"):
             ease_of_search = st.slider(
-                "How easy was it to locate the correct shoe ID?",
+                "How easy was it to locate the correct shoe size?",
                 1, 5, 3
             )
             clarity = st.slider(
-                "How clear was the interface for selecting shoe IDs?",
+                "How clear was the interface for selecting shoe sizes?",
                 1, 5, 3
             )
             efficiency = st.slider(
