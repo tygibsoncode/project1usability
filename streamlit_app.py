@@ -26,7 +26,14 @@ def save_to_csv(data_dict, csv_file):
 
 def load_from_csv(csv_file):
     if os.path.isfile(csv_file):
-        return pd.read_csv(csv_file)
+        try:
+            return pd.read_csv(csv_file)
+        except Exception:
+            st.warning(
+                f"Could not read {os.path.basename(csv_file)} because its format "
+                f"does not match the current app version. Delete the old file and try again."
+            )
+            return pd.DataFrame()
     return pd.DataFrame()
 
 
@@ -305,14 +312,17 @@ def main():
                 if col in exit_df.columns:
                     exit_df[col] = pd.to_numeric(exit_df[col], errors="coerce")
 
-            if all(col in exit_df.columns for col in ["ease_of_search", "clarity", "efficiency", "confidence"]):
+            needed_cols = ["ease_of_search", "clarity", "efficiency", "confidence"]
+            if all(col in exit_df.columns for col in needed_cols):
                 st.write(f"**Average Ease of Search:** {exit_df['ease_of_search'].mean():.2f}")
                 st.write(f"**Average Clarity:** {exit_df['clarity'].mean():.2f}")
                 st.write(f"**Average Efficiency:** {exit_df['efficiency'].mean():.2f}")
                 st.write(f"**Average Confidence:** {exit_df['confidence'].mean():.2f}")
 
                 st.subheader("Exit Ratings Overview")
-                st.bar_chart(exit_df[["ease_of_search", "clarity", "efficiency", "confidence"]].mean())
+                st.bar_chart(exit_df[needed_cols].mean())
+
+    st.caption("If you changed your form fields and see CSV errors, delete the old files in the data folder and submit fresh test entries.")
 
 
 if __name__ == "__main__":
